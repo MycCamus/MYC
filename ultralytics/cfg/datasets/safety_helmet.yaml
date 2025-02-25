@@ -1,0 +1,6 @@
+train: D:\safety_helmet\DsLMF_mine_safety_helmet__data2023_yolo\images\train
+val: D:\safety_helmet\DsLMF_mine_safety_helmet__data2023_yolo\images\val
+# number of classes
+nc: 1
+# class names
+names: ['safety_helmet']
