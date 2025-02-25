@@ -17,5 +17,5 @@ if __name__ == '__main__':
                           device = 0,
                           close_mosaic = 10,
                           project = 'runs/train',
-                          name='train_v8OCBAMTEST',
+                          name='train_v8OCBAM',
                           )
