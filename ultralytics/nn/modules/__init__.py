@@ -24,7 +24,7 @@ from .block import (
 )
 from .conv import (
     CBAM,ChannelAttention,Concat,Conv,Conv2,ConvTranspose,DWConv,DWConvTranspose2d,
-    Focus,GhostConv,LightConv,RepConv,SpatialAttention,ODConv2d_yolo,
+    Focus,GhostConv,LightConv,RepConv,SpatialAttention,
 )
 from .head import OBB, Classify, Detect, Pose, RTDETRDecoder, Segment, WorldDetect, v10Detect
 from .transformer import (
@@ -111,13 +111,10 @@ from .BGF import BiLevelRoutingAttention, CSPStage,C2f_BRAttention
 
 # )
 
-from ODConv import ODConv2d
 
 __all__ = (
     "Conv",
     "Conv2",
-    'ODConv2d_yolo',
-    'ODConv',
     "LightConv",
     "RepConv",
     "DWConv",
