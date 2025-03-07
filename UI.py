@@ -59,14 +59,14 @@ class YOLORealTimeUI(QMainWindow):
         self.conf_threshold = 0.5  # 置信度阈值
         self.iou_threshold = 0.45  # NMS IOU阈值
 
-        # self.class_names = self.model.names  # 新增类别名称字典
-        # self.fps = 0
-        # self.frame_count = 0
-        # self.fps_time = time.time()
-        #
-        # # 在控制面板添加FPS显示
-        # self.fps_label = QLabel("FPS: 0")
-        # self.control_layout.addWidget(self.fps_label)
+        self.class_names = self.model.names  # 新增类别名称字典
+        self.fps = 0
+        self.frame_count = 0
+        self.fps_time = time.time()
+
+        # 在控制面板添加FPS显示
+        self.fps_label = QLabel("FPS: 0")
+        self.control_layout.addWidget(self.fps_label)
 
     def start_detect(self):
         if not self.cap:

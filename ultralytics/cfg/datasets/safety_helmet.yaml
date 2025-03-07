@@ -1,6 +1,9 @@
-train: D:\safety_helmet\DsLMF_mine_safety_helmet__data2023_yolo\images\train
-val: D:\safety_helmet\DsLMF_mine_safety_helmet__data2023_yolo\images\val
+#train: D:\safety_helmet\DsLMF_mine_safety_helmet__data2023_yolo\images\train
+#val: D:\safety_helmet\DsLMF_mine_safety_helmet__data2023_yolo\images\val
+
+train: E:\9-biaozhu1.20\9-biaozhu\images\train
+val: E:\9-biaozhu1.20\9-biaozhu\images\val
 # number of classes
-nc: 1
+nc: 2
 # class names
-names: ['safety_helmet']
+names: ['hat','person']
