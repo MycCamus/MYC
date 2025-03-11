@@ -2,7 +2,7 @@ import warnings
 warnings.filterwarnings("ignore")
 from ultralytics import YOLO
 
-model_yaml_path = 'ultralytics/cfg/models/v8/yolov8n-MLLA.yaml'
+model_yaml_path = 'ultralytics/cfg/models/v8/PE-YOLO.yaml'
 
 data_yaml_path = 'ultralytics/cfg/datasets/safety_helmet.yaml'
 
@@ -17,5 +17,6 @@ if __name__ == '__main__':
                           device = 0,
                           close_mosaic = 10,
                           project = 'runs/train',
-                          name='train3',
+                          name='train4',
+                          amp=False
                           )
