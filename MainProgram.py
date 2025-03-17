@@ -2,6 +2,8 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="timm.models.layers")
 # -*- coding: utf-8 -*-
 import time
+from datetime import datetime
+import uuid
 from PyQt5.QtWidgets import QApplication , QMainWindow, QFileDialog, \
     QMessageBox,QWidget,QHeaderView,QTableWidgetItem, QAbstractItemView
 import sys
@@ -45,17 +47,16 @@ class MainWindow(QMainWindow):
     def initMain(self):
         self.show_width = 770
         self.show_height = 480
-
         self.org_path = None
-
         self.is_camera_open = False
         self.cap = None
 
         # self.device = 0 if torch.cuda.is_available() else 'cpu'
 
         # 加载检测模型
+        # self.model_list = self.load_models('models')
         self.model = YOLO(Config.model_path, task='detect')
-        self.model(np.zeros((48, 48, 3)))  #预先加载推理模型
+        self.model(np.zeros((640, 640, 3)))  #预先加载推理模型
         self.fontC = ImageFont.load_default()
         # 用于绘制不同颜色矩形框
         self.colors = tools.Colors()
@@ -83,8 +84,42 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.verticalHeader().setVisible(False)  # 隐藏列标题
         self.ui.tableWidget.setAlternatingRowColors(True)  # 表格背景交替
 
+        # self.ui.modelComboBox.addItems(self.model_list)  # ← 新增代码
+        # if self.model_list:
+        #     Config.model_path = self.model_list[0]  # ← 设置默认模型
         # 设置主页背景图片border-image: url(:/icons/ui_imgs/icons/camera.png)
         # self.setStyleSheet("#MainWindow{background-image:url(:/bgs/ui_imgs/bg3.jpg)}")
+
+    # def signalconnect(self):
+    #     self.ui.PicBtn.clicked.connect(self.open_img)
+    #     # ... 其他现有信号连接 ...
+    #     self.ui.modelComboBox.activated.connect(self.on_model_changed)  # ← 新增信号连接
+    #
+    # # 新增模型加载方法
+    # def load_models(self, model_dir):
+    #     """加载指定目录下的所有.pt模型文件"""
+    #     model_files = []
+    #     if os.path.exists(model_dir):
+    #         for file in os.listdir(model_dir):
+    #             if file.endswith('.pt'):
+    #                 model_files.append(os.path.join(model_dir, file))
+    #     return model_files
+    #
+    # # 新增模型切换处理方法
+    # def on_model_changed(self):
+    #     """处理模型切换事件"""
+    #     selected_model = self.ui.modelComboBox.currentText()
+    #     if selected_model and os.path.exists(selected_model):
+    #         try:
+    #             self.model = YOLO(selected_model, task='detect')
+    #             self.model(np.zeros((640, 640, 3)))  # 重新预加载模型
+    #             Config.model_path = selected_model  # 更新配置
+    #             QMessageBox.information(self, '提示', '模型切换成功！')
+    #         except Exception as e:
+    #             QMessageBox.critical(self, '错误', f'模型加载失败: {str(e)}')
+    #             self.ui.modelComboBox.setCurrentIndex(0)  # 失败则恢复默认
+    #     else:
+    #         QMessageBox.warning(self, '警告', '选择的模型文件不存在！')
 
     def open_img(self):
         if self.cap:
@@ -94,10 +129,6 @@ class MainWindow(QMainWindow):
             self.ui.CaplineEdit.setText('摄像头未开启')
             self.cap = None
 
-        # 弹出的窗口名称：'打开图片'
-        # 默认打开的目录：'./'
-        # 只能打开.jpg与.gif结尾的图片文件
-        # file_path, _ = QFileDialog.getOpenFileName(self.ui.centralwidget, '打开图片', './', "Image files (*.jpg *.gif)")
         file_path, _ = QFileDialog.getOpenFileName(None, '打开图片', './', "Image files (*.jpg *.jepg *.png)")
         if not file_path:
             return
@@ -120,12 +151,6 @@ class MainWindow(QMainWindow):
         self.conf_list = self.results.boxes.conf.tolist()
         self.conf_list = ['%.2f %%' % (each*100) for each in self.conf_list]
 
-        # now_img = self.cv_img.copy()
-        # for loacation, type_id, conf in zip(self.location_list, self.cls_list, self.conf_list):
-        #     type_id = int(type_id)
-        #     color = self.colors(int(type_id), True)
-        #     # cv2.rectangle(now_img, (int(x1), int(y1)), (int(x2), int(y2)), colors(int(type_id), True), 3)
-        #     now_img = tools.drawRectBox(now_img, loacation, Config.CH_names[type_id], self.fontC, color)
         now_img = self.results.plot()
         self.draw_img = now_img
         # 获取缩放后的图片尺寸
@@ -144,9 +169,6 @@ class MainWindow(QMainWindow):
         # 设置目标选择下拉框
         choose_list = ['全部']
         target_names = [Config.names[id]+ '_'+ str(index) for index,id in enumerate(self.cls_list)]
-        # object_list = sorted(set(self.cls_list))
-        # for each in object_list:
-        #     choose_list.append(Config.CH_names[each])
         choose_list = choose_list + target_names
 
         self.ui.comboBox.clear()
@@ -157,17 +179,17 @@ class MainWindow(QMainWindow):
             self.ui.label_conf.setText(str(self.conf_list[0]))
         #   默认显示第一个目标框坐标
         #   设置坐标位置值
-            self.ui.label_xmin.setText(str(self.location_list[0][0]))
-            self.ui.label_ymin.setText(str(self.location_list[0][1]))
-            self.ui.label_xmax.setText(str(self.location_list[0][2]))
-            self.ui.label_ymax.setText(str(self.location_list[0][3]))
-        else:
-            self.ui.type_lb.setText('')
-            self.ui.label_conf.setText('')
-            self.ui.label_xmin.setText('')
-            self.ui.label_ymin.setText('')
-            self.ui.label_xmax.setText('')
-            self.ui.label_ymax.setText('')
+        #     self.ui.label_xmin.setText(str(self.location_list[0][0]))
+        #     self.ui.label_ymin.setText(str(self.location_list[0][1]))
+        #     self.ui.label_xmax.setText(str(self.location_list[0][2]))
+        #     self.ui.label_ymax.setText(str(self.location_list[0][3]))
+        # else:
+        #     self.ui.type_lb.setText('')
+        #     self.ui.label_conf.setText('')
+        #     self.ui.label_xmin.setText('')
+        #     self.ui.label_ymin.setText('')
+        #     self.ui.label_xmax.setText('')
+        #     self.ui.label_ymax.setText('')
 
         # # 删除表格所有行
         self.ui.tableWidget.setRowCount(0)
@@ -236,26 +258,23 @@ class MainWindow(QMainWindow):
                 if target_nums >= 1:
                     self.ui.type_lb.setText(Config.CH_names[self.cls_list[0]])
                     self.ui.label_conf.setText(str(self.conf_list[0]))
-                    #   默认显示第一个目标框坐标
-                    #   设置坐标位置值
-                    self.ui.label_xmin.setText(str(self.location_list[0][0]))
-                    self.ui.label_ymin.setText(str(self.location_list[0][1]))
-                    self.ui.label_xmax.setText(str(self.location_list[0][2]))
-                    self.ui.label_ymax.setText(str(self.location_list[0][3]))
-                else:
-                    self.ui.type_lb.setText('')
-                    self.ui.label_conf.setText('')
-                    self.ui.label_xmin.setText('')
-                    self.ui.label_ymin.setText('')
-                    self.ui.label_xmax.setText('')
-                    self.ui.label_ymax.setText('')
+                #     #   默认显示第一个目标框坐标
+                #     #   设置坐标位置值
+                #     self.ui.label_xmin.setText(str(self.location_list[0][0]))
+                #     self.ui.label_ymin.setText(str(self.location_list[0][1]))
+                #     self.ui.label_xmax.setText(str(self.location_list[0][2]))
+                #     self.ui.label_ymax.setText(str(self.location_list[0][3]))
+                # else:
+                #     self.ui.type_lb.setText('')
+                #     self.ui.label_conf.setText('')
+                #     self.ui.label_xmin.setText('')
+                #     self.ui.label_ymin.setText('')
+                #     self.ui.label_xmax.setText('')
+                #     self.ui.label_ymax.setText('')
 
-                # # 删除表格所有行
-                # self.ui.tableWidget.setRowCount(0)
-                # self.ui.tableWidget.clearContents()
                 self.tabel_info_show(self.location_list, self.cls_list, self.conf_list, path=img_path)
                 self.ui.tableWidget.scrollToBottom()
-                QApplication.processEvents()  #刷新页面
+                QApplication.processEvents()
 
     def draw_rect_and_tabel(self, results, img):
         now_img = img.copy()
@@ -287,17 +306,17 @@ class MainWindow(QMainWindow):
         if target_nums >= 1:
             self.ui.type_lb.setText(Config.CH_names[self.cls_list[0]])
             self.ui.label_conf.setText(str(self.conf_list[0]))
-            self.ui.label_xmin.setText(str(self.location_list[0][0]))
-            self.ui.label_ymin.setText(str(self.location_list[0][1]))
-            self.ui.label_xmax.setText(str(self.location_list[0][2]))
-            self.ui.label_ymax.setText(str(self.location_list[0][3]))
-        else:
-            self.ui.type_lb.setText('')
-            self.ui.label_conf.setText('')
-            self.ui.label_xmin.setText('')
-            self.ui.label_ymin.setText('')
-            self.ui.label_xmax.setText('')
-            self.ui.label_ymax.setText('')
+        #     self.ui.label_xmin.setText(str(self.location_list[0][0]))
+        #     self.ui.label_ymin.setText(str(self.location_list[0][1]))
+        #     self.ui.label_xmax.setText(str(self.location_list[0][2]))
+        #     self.ui.label_ymax.setText(str(self.location_list[0][3]))
+        # else:
+        #     self.ui.type_lb.setText('')
+        #     self.ui.label_conf.setText('')
+        #     self.ui.label_xmin.setText('')
+        #     self.ui.label_ymin.setText('')
+        #     self.ui.label_xmax.setText('')
+        #     self.ui.label_ymax.setText('')
 
         # 删除表格所有行
         self.ui.tableWidget.setRowCount(0)
@@ -320,10 +339,10 @@ class MainWindow(QMainWindow):
             self.ui.label_conf.setText(str(self.conf_list[index]))
 
         # 设置坐标位置值
-        self.ui.label_xmin.setText(str(cur_box[0][0]))
-        self.ui.label_ymin.setText(str(cur_box[0][1]))
-        self.ui.label_xmax.setText(str(cur_box[0][2]))
-        self.ui.label_ymax.setText(str(cur_box[0][3]))
+        # self.ui.label_xmin.setText(str(cur_box[0][0]))
+        # self.ui.label_ymin.setText(str(cur_box[0][1]))
+        # self.ui.label_xmax.setText(str(cur_box[0][2]))
+        # self.ui.label_ymax.setText(str(cur_box[0][3]))
 
         resize_cvimg = cv2.resize(cur_img, (self.img_width, self.img_height))
         pix_img = tools.cvimg_to_qpiximg(resize_cvimg)
@@ -369,7 +388,7 @@ class MainWindow(QMainWindow):
             item_conf.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)  # 设置文本居中
 
             item_location = QTableWidgetItem(str(location)) # 目标框位置
-            # item_location.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)  # 设置文本居中
+            item_location.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)  # 设置文本居中
 
             self.ui.tableWidget.setItem(row_count, 0, item_id)
             self.ui.tableWidget.setItem(row_count, 1, item_path)
@@ -427,19 +446,19 @@ class MainWindow(QMainWindow):
             if target_nums >= 1:
                 self.ui.type_lb.setText(Config.CH_names[self.cls_list[0]])
                 self.ui.label_conf.setText(str(self.conf_list[0]))
-                #   默认显示第一个目标框坐标
-                #   设置坐标位置值
-                self.ui.label_xmin.setText(str(self.location_list[0][0]))
-                self.ui.label_ymin.setText(str(self.location_list[0][1]))
-                self.ui.label_xmax.setText(str(self.location_list[0][2]))
-                self.ui.label_ymax.setText(str(self.location_list[0][3]))
-            else:
-                self.ui.type_lb.setText('')
-                self.ui.label_conf.setText('')
-                self.ui.label_xmin.setText('')
-                self.ui.label_ymin.setText('')
-                self.ui.label_xmax.setText('')
-                self.ui.label_ymax.setText('')
+            #     #   默认显示第一个目标框坐标
+            #     #   设置坐标位置值
+            #     self.ui.label_xmin.setText(str(self.location_list[0][0]))
+            #     self.ui.label_ymin.setText(str(self.location_list[0][1]))
+            #     self.ui.label_xmax.setText(str(self.location_list[0][2]))
+            #     self.ui.label_ymax.setText(str(self.location_list[0][3]))
+            # else:
+            #     self.ui.type_lb.setText('')
+            #     self.ui.label_conf.setText('')
+            #     self.ui.label_xmin.setText('')
+            #     self.ui.label_ymin.setText('')
+            #     self.ui.label_xmax.setText('')
+            #     self.ui.label_ymax.setText('')
 
 
             # 删除表格所有行
@@ -492,7 +511,7 @@ class MainWindow(QMainWindow):
 
     def save_detect_video(self):
         if self.cap is None and not self.org_path:
-            QMessageBox.about(self, '提示', '当前没有可保存信息，请先打开图片或视频！')
+            QMessageBox.about(self, '提示', '请先打开图片或视频！')
             return
 
         if self.is_camera_open:
@@ -500,7 +519,7 @@ class MainWindow(QMainWindow):
             return
 
         if self.cap:
-            res = QMessageBox.information(self, '提示', '保存视频检测结果可能需要较长时间，请确认是否继续保存？',QMessageBox.Yes | QMessageBox.No ,  QMessageBox.Yes)
+            res = QMessageBox.information(self, '提示', '保存视频检测结果可能需要花费较长时间，是否继续保存？',QMessageBox.Yes | QMessageBox.No ,  QMessageBox.Yes)
             if res == QMessageBox.Yes:
                 self.video_stop()
                 com_text = self.ui.comboBox.currentText()
@@ -511,28 +530,33 @@ class MainWindow(QMainWindow):
                 return
         else:
             if os.path.isfile(self.org_path):
-                fileName = os.path.basename(self.org_path)
-                name , end_name= fileName.split('.')
-                save_name = name + '_detect_result.' + end_name
+                # 生成带时间戳和UUID的唯一文件名
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                unique_id = str(uuid.uuid4())[:8]
+                base_name = os.path.splitext(os.path.basename(self.org_path))[0]
+                save_name = f"{base_name}_detect_{timestamp}_{unique_id}.jpg"
                 save_img_path = os.path.join(Config.save_path, save_name)
-                # 保存图片
+
                 cv2.imwrite(save_img_path, self.draw_img)
-                QMessageBox.about(self, '提示', '图片保存成功!\n文件路径:{}'.format(save_img_path))
+                QMessageBox.about(self, '提示', f'图片保存成功!\n文件路径:{save_img_path}')
             else:
                 img_suffix = ['jpg', 'png', 'jpeg', 'bmp']
                 for file_name in os.listdir(self.org_path):
                     full_path = os.path.join(self.org_path, file_name)
                     if os.path.isfile(full_path) and file_name.split('.')[-1].lower() in img_suffix:
-                        name, end_name = file_name.split('.')
-                        save_name = name + '_detect_result.' + end_name
+                        # 为每张图片生成唯一文件名
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        unique_id = str(uuid.uuid4())[:8]
+                        base_name = os.path.splitext(file_name)[0]
+                        ext = os.path.splitext(file_name)[1][1:]  # 获取扩展名
+                        save_name = f"{base_name}_detect_{timestamp}_{unique_id}.{ext}"
                         save_img_path = os.path.join(Config.save_path, save_name)
+
                         results = self.model(full_path)[0]
                         now_img = results.plot()
-                        # 保存图片
                         cv2.imwrite(save_img_path, now_img)
 
-                QMessageBox.about(self, '提示', '图片保存成功!\n文件路径:{}'.format(Config.save_path))
-
+                QMessageBox.about(self, '提示', f'批量图片保存成功!\n文件路径:{Config.save_path}')
 
     def update_process_bar(self,cur_num, total):
         if cur_num == 1:
@@ -552,10 +576,6 @@ class MainWindow(QMainWindow):
 
 
 class btn2Thread(QThread):
-    """
-    进行检测后的视频保存
-    """
-    # 声明一个信号
     update_ui_signal = pyqtSignal(int,int)
 
     def __init__(self, path, model, com_text):

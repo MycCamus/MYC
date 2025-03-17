@@ -812,7 +812,7 @@ def torch_safe_load(weight, safe_only=False):
     ```python
     from ultralytics.nn.tasks import torch_safe_load
 
-    ckpt, file = torch_safe_load("path/to/best.pt", safe_only=True)
+    ckpt, file = torch_safe_load("path/to/CBAMbest.pt", safe_only=True)
     ```
 
     Returns:
