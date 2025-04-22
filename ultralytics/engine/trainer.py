@@ -114,7 +114,7 @@ class BaseTrainer:
             self.wdir.mkdir(parents=True, exist_ok=True)  # make dir
             self.args.save_dir = str(self.save_dir)
             yaml_save(self.save_dir / "args.yaml", vars(self.args))  # save run args
-        self.last, self.best = self.wdir / "last.pt", self.wdir / "CBAMbest.pt"  # checkpoint paths
+        self.last, self.best = self.wdir / "last.pt", self.wdir / "best.pt"  # checkpoint paths
         self.save_period = self.args.save_period
 
         self.batch_size = self.args.batch
@@ -463,7 +463,7 @@ class BaseTrainer:
             epoch += 1
 
         if RANK in {-1, 0}:
-            # Do final val with CBAMbest.pt
+            # Do final val with best.pt
             seconds = time.time() - self.train_time_start
             LOGGER.info(f"\n{epoch - self.start_epoch + 1} epochs completed in {seconds / 3600:.3f} hours.")
             self.final_eval()
@@ -538,7 +538,7 @@ class BaseTrainer:
         # Save checkpoints
         self.last.write_bytes(serialized_ckpt)  # save last.pt
         if self.best_fitness == self.fitness:
-            self.best.write_bytes(serialized_ckpt)  # save CBAMbest.pt
+            self.best.write_bytes(serialized_ckpt)  # save best.pt
         if (self.save_period > 0) and (self.epoch % self.save_period == 0):
             (self.wdir / f"epoch{self.epoch}.pt").write_bytes(serialized_ckpt)  # save epoch, i.e. 'epoch3.pt'
         # if self.args.close_mosaic and self.epoch == (self.epochs - self.args.close_mosaic - 1):
@@ -680,7 +680,7 @@ class BaseTrainer:
                 if f is self.last:
                     ckpt = strip_optimizer(f)
                 elif f is self.best:
-                    k = "train_results"  # update CBAMbest.pt train_metrics from last.pt
+                    k = "train_results"  # update best.pt train_metrics from last.pt
                     strip_optimizer(f, updates={k: ckpt[k]} if k in ckpt else None)
                     LOGGER.info(f"\nValidating {f}...")
                     self.validator.args.plots = self.args.plots

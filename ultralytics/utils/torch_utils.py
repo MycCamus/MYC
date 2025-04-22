@@ -550,12 +550,12 @@ class ModelEMA:
             copy_attr(self.ema, model, include, exclude)
 
 
-def strip_optimizer(f: Union[str, Path] = "CBAMbest.pt", s: str = "", updates: dict = None) -> dict:
+def strip_optimizer(f: Union[str, Path] = "best.pt", s: str = "", updates: dict = None) -> dict:
     """
     Strip optimizer from 'f' to finalize training, optionally save as 's'.
 
     Args:
-        f (str): file path to model to strip the optimizer from. Default is 'CBAMbest.pt'.
+        f (str): file path to model to strip the optimizer from. Default is 'best.pt'.
         s (str): file path to save the model with stripped optimizer to. If not provided, 'f' will be overwritten.
         updates (dict): a dictionary of updates to overlay onto the checkpoint before saving.
 
@@ -769,7 +769,7 @@ class EarlyStopping:
             prefix = colorstr("EarlyStopping: ")
             LOGGER.info(
                 f"{prefix}Training stopped early as no improvement observed in last {self.patience} epochs. "
-                f"Best results observed at epoch {self.best_epoch}, best model saved as CBAMbest.pt.\n"
+                f"Best results observed at epoch {self.best_epoch}, best model saved as best.pt.\n"
                 f"To update EarlyStopping(patience={self.patience}) pass a new patience value, "
                 f"i.e. `patience=300` or use `patience=0` to disable EarlyStopping."
             )

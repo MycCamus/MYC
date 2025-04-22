@@ -192,7 +192,7 @@ class Tuner:
                 # Train YOLO model with mutated hyperparameters (run in subprocess to avoid dataloader hang)
                 cmd = ["yolo", "train", *(f"{k}={v}" for k, v in train_args.items())]
                 return_code = subprocess.run(" ".join(cmd), check=True, shell=True).returncode
-                ckpt_file = weights_dir / ("CBAMbest.pt" if (weights_dir / "CBAMbest.pt").exists() else "last.pt")
+                ckpt_file = weights_dir / ("best.pt" if (weights_dir / "best.pt").exists() else "last.pt")
                 metrics = torch.load(ckpt_file)["train_metrics"]
                 assert return_code == 0, "training failed"
 

@@ -4,6 +4,6 @@
 train: E:\9-biaozhu1.20\9-biaozhu\images\train
 val: E:\9-biaozhu1.20\9-biaozhu\images\val
 # number of classes
-nc: 2
+nc: 5
 # class names
-names: ['hat','person']
+names: ['hat','no_hat','back','no_back','save']

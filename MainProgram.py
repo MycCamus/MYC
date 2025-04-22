@@ -30,6 +30,8 @@ class MainWindow(QMainWindow):
         self.initMain()
         self.signalconnect()
 
+        self.auto_save_flag = True
+        self.last_save_time = 0
         # css渲染
         style_file = 'UIProgram/style.css'
         qssStyleSheet = QSSLoader.read_qss_file(style_file)
@@ -37,12 +39,14 @@ class MainWindow(QMainWindow):
 
     def signalconnect(self):
         self.ui.PicBtn.clicked.connect(self.open_img)
+        self.ui.modelComboBox.activated.connect(self.on_model_changed)
         self.ui.comboBox.activated.connect(self.combox_change)
         self.ui.VideoBtn.clicked.connect(self.vedio_show)
         self.ui.CapBtn.clicked.connect(self.camera_show)
         self.ui.SaveBtn.clicked.connect(self.save_detect_video)
         self.ui.ExitBtn.clicked.connect(QCoreApplication.quit)
         self.ui.FilesBtn.clicked.connect(self.detact_batch_imgs)
+
 
     def initMain(self):
         self.show_width = 770
@@ -54,7 +58,7 @@ class MainWindow(QMainWindow):
         # self.device = 0 if torch.cuda.is_available() else 'cpu'
 
         # 加载检测模型
-        # self.model_list = self.load_models('models')
+        self.model_list = self.scan_models()  # 初始化model_list属性
         self.model = YOLO(Config.model_path, task='detect')
         self.model(np.zeros((640, 640, 3)))  #预先加载推理模型
         self.fontC = ImageFont.load_default()
@@ -77,49 +81,53 @@ class MainWindow(QMainWindow):
         self.ui.tableWidget.setColumnWidth(2, 150)
         self.ui.tableWidget.setColumnWidth(3, 90)
         self.ui.tableWidget.setColumnWidth(4, 230)
-        # self.ui.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)  # 表格铺满
-        # self.ui.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
-        # self.ui.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)  # 设置表格不可编辑
         self.ui.tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)  # 设置表格整行选中
         self.ui.tableWidget.verticalHeader().setVisible(False)  # 隐藏列标题
         self.ui.tableWidget.setAlternatingRowColors(True)  # 表格背景交替
 
-        # self.ui.modelComboBox.addItems(self.model_list)  # ← 新增代码
-        # if self.model_list:
-        #     Config.model_path = self.model_list[0]  # ← 设置默认模型
-        # 设置主页背景图片border-image: url(:/icons/ui_imgs/icons/camera.png)
-        # self.setStyleSheet("#MainWindow{background-image:url(:/bgs/ui_imgs/bg3.jpg)}")
+        self.ui.modelComboBox.addItems([os.path.basename(p) for p in self.model_list])  # ← 新增代码
+        if self.model_list:
+            Config.model_path = self.model_list[0]  # 设置默认模型
+            self.model = YOLO(Config.model_path, task='detect')
 
-    # def signalconnect(self):
-    #     self.ui.PicBtn.clicked.connect(self.open_img)
-    #     # ... 其他现有信号连接 ...
-    #     self.ui.modelComboBox.activated.connect(self.on_model_changed)  # ← 新增信号连接
-    #
-    # # 新增模型加载方法
-    # def load_models(self, model_dir):
-    #     """加载指定目录下的所有.pt模型文件"""
-    #     model_files = []
-    #     if os.path.exists(model_dir):
-    #         for file in os.listdir(model_dir):
-    #             if file.endswith('.pt'):
-    #                 model_files.append(os.path.join(model_dir, file))
-    #     return model_files
-    #
-    # # 新增模型切换处理方法
-    # def on_model_changed(self):
-    #     """处理模型切换事件"""
-    #     selected_model = self.ui.modelComboBox.currentText()
-    #     if selected_model and os.path.exists(selected_model):
-    #         try:
-    #             self.model = YOLO(selected_model, task='detect')
-    #             self.model(np.zeros((640, 640, 3)))  # 重新预加载模型
-    #             Config.model_path = selected_model  # 更新配置
-    #             QMessageBox.information(self, '提示', '模型切换成功！')
-    #         except Exception as e:
-    #             QMessageBox.critical(self, '错误', f'模型加载失败: {str(e)}')
-    #             self.ui.modelComboBox.setCurrentIndex(0)  # 失败则恢复默认
-    #     else:
-    #         QMessageBox.warning(self, '警告', '选择的模型文件不存在！')
+    # 新增模型扫描方法
+    def scan_models(self):
+        model_dir = os.path.join(os.path.dirname(__file__), "models")
+        return [os.path.join(model_dir, f) for f in os.listdir(model_dir)
+                if f.endswith(('.pt', '.onnx', '.engine'))]
+
+
+    # 新增模型切换处理方法
+    def on_model_changed(self):
+        """处理模型切换事件"""
+        selected_index = self.ui.modelComboBox.currentIndex()
+        selected_model = self.model_list[selected_index]
+
+        if selected_model and os.path.exists(selected_model):
+            try:
+                new_model = YOLO(selected_model, task='detect')
+                new_model(np.zeros((640, 640, 3)))  # 重新预加载模型
+
+                self.model = new_model
+                Config.model_path = selected_model  # 更新配置
+
+                current_path = self.org_path
+                self.ui.tableWidget.clearContents()
+
+                if current_path and os.path.exists(current_path):
+                    if self.cap:
+                        self.video_start()
+                    else:
+                        self.org_path = current_path
+                        self.open_img()
+
+                QMessageBox.information(self, '提示', '模型切换成功！')
+            except Exception as e:
+                QMessageBox.critical(self, '错误', f'模型加载失败: {str(e)}')
+                self.ui.modelComboBox.setCurrentIndex(0)  # 失败则恢复默认
+        else:
+            QMessageBox.warning(self, '警告', '选择的模型文件不存在！')
+            self.ui.modelComboBox.setCurrentIndex(0)  # 恢复默认
 
     def open_img(self):
         if self.cap:
@@ -152,6 +160,10 @@ class MainWindow(QMainWindow):
         self.conf_list = ['%.2f %%' % (each*100) for each in self.conf_list]
 
         now_img = self.results.plot()
+
+        if self.auto_save_flag:
+            self.check_and_save(self.results, now_img)
+
         self.draw_img = now_img
         # 获取缩放后的图片尺寸
         self.img_width, self.img_height = self.get_resize_size(now_img)
@@ -177,19 +189,6 @@ class MainWindow(QMainWindow):
         if target_nums >= 1:
             self.ui.type_lb.setText(Config.CH_names[self.cls_list[0]])
             self.ui.label_conf.setText(str(self.conf_list[0]))
-        #   默认显示第一个目标框坐标
-        #   设置坐标位置值
-        #     self.ui.label_xmin.setText(str(self.location_list[0][0]))
-        #     self.ui.label_ymin.setText(str(self.location_list[0][1]))
-        #     self.ui.label_xmax.setText(str(self.location_list[0][2]))
-        #     self.ui.label_ymax.setText(str(self.location_list[0][3]))
-        # else:
-        #     self.ui.type_lb.setText('')
-        #     self.ui.label_conf.setText('')
-        #     self.ui.label_xmin.setText('')
-        #     self.ui.label_ymin.setText('')
-        #     self.ui.label_xmax.setText('')
-        #     self.ui.label_ymax.setText('')
 
         # # 删除表格所有行
         self.ui.tableWidget.setRowCount(0)
@@ -233,6 +232,10 @@ class MainWindow(QMainWindow):
 
                 now_img = self.results.plot()
 
+                # 新增自动保存检查
+                if self.auto_save_flag:
+                    self.check_and_save(self.results, now_img)
+
                 self.draw_img = now_img
                 # 获取缩放后的图片尺寸
                 self.img_width, self.img_height = self.get_resize_size(now_img)
@@ -258,19 +261,6 @@ class MainWindow(QMainWindow):
                 if target_nums >= 1:
                     self.ui.type_lb.setText(Config.CH_names[self.cls_list[0]])
                     self.ui.label_conf.setText(str(self.conf_list[0]))
-                #     #   默认显示第一个目标框坐标
-                #     #   设置坐标位置值
-                #     self.ui.label_xmin.setText(str(self.location_list[0][0]))
-                #     self.ui.label_ymin.setText(str(self.location_list[0][1]))
-                #     self.ui.label_xmax.setText(str(self.location_list[0][2]))
-                #     self.ui.label_ymax.setText(str(self.location_list[0][3]))
-                # else:
-                #     self.ui.type_lb.setText('')
-                #     self.ui.label_conf.setText('')
-                #     self.ui.label_xmin.setText('')
-                #     self.ui.label_ymin.setText('')
-                #     self.ui.label_xmax.setText('')
-                #     self.ui.label_ymax.setText('')
 
                 self.tabel_info_show(self.location_list, self.cls_list, self.conf_list, path=img_path)
                 self.ui.tableWidget.scrollToBottom()
@@ -289,7 +279,9 @@ class MainWindow(QMainWindow):
             type_id = int(type_id)
             color = self.colors(int(type_id), True)
             # cv2.rectangle(now_img, (int(x1), int(y1)), (int(x2), int(y2)), colors(int(type_id), True), 3)
-            now_img = tools.drawRectBox(now_img, loacation, Config.CH_names[type_id], self.fontC, color)
+            # now_img = tools.drawRectBox(now_img, loacation, Config.CH_names[type_id], self.fontC, color)
+            label = f"{Config.CH_names[type_id]} {conf}"  # 使用中文标签
+            now_img = tools.drawRectBox(now_img, loacation, label, self.fontC, color)  # 修改标签生成方式
 
         # 获取缩放后的图片尺寸
         self.img_width, self.img_height = self.get_resize_size(now_img)
@@ -306,17 +298,6 @@ class MainWindow(QMainWindow):
         if target_nums >= 1:
             self.ui.type_lb.setText(Config.CH_names[self.cls_list[0]])
             self.ui.label_conf.setText(str(self.conf_list[0]))
-        #     self.ui.label_xmin.setText(str(self.location_list[0][0]))
-        #     self.ui.label_ymin.setText(str(self.location_list[0][1]))
-        #     self.ui.label_xmax.setText(str(self.location_list[0][2]))
-        #     self.ui.label_ymax.setText(str(self.location_list[0][3]))
-        # else:
-        #     self.ui.type_lb.setText('')
-        #     self.ui.label_conf.setText('')
-        #     self.ui.label_xmin.setText('')
-        #     self.ui.label_ymin.setText('')
-        #     self.ui.label_xmax.setText('')
-        #     self.ui.label_ymax.setText('')
 
         # 删除表格所有行
         self.ui.tableWidget.setRowCount(0)
@@ -337,12 +318,6 @@ class MainWindow(QMainWindow):
             cur_img = self.results[index].plot()
             self.ui.type_lb.setText(Config.CH_names[self.cls_list[index]])
             self.ui.label_conf.setText(str(self.conf_list[index]))
-
-        # 设置坐标位置值
-        # self.ui.label_xmin.setText(str(cur_box[0][0]))
-        # self.ui.label_ymin.setText(str(cur_box[0][1]))
-        # self.ui.label_xmax.setText(str(cur_box[0][2]))
-        # self.ui.label_ymax.setText(str(cur_box[0][3]))
 
         resize_cvimg = cv2.resize(cur_img, (self.img_width, self.img_height))
         pix_img = tools.cvimg_to_qpiximg(resize_cvimg)
@@ -379,7 +354,7 @@ class MainWindow(QMainWindow):
             item_id = QTableWidgetItem(str(row_count+1))  # 序号
             item_id.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)  # 设置文本居中
             item_path = QTableWidgetItem(str(path))  # 路径
-            # item_path.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+            item_path.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
 
             item_cls = QTableWidgetItem(str(Config.CH_names[cls]))
             item_cls.setTextAlignment(Qt.AlignHCenter | Qt.AlignVCenter)  # 设置文本居中
@@ -408,6 +383,8 @@ class MainWindow(QMainWindow):
             # 目标检测
             t1 = time.time()
             results = self.model(now_img)[0]
+            if self.auto_save_flag:
+                self.check_and_save(results, now_img)
             t2 = time.time()
             take_time_str = '{:.3f} s'.format(t2 - t1)
             self.ui.time_lb.setText(take_time_str)
@@ -446,20 +423,6 @@ class MainWindow(QMainWindow):
             if target_nums >= 1:
                 self.ui.type_lb.setText(Config.CH_names[self.cls_list[0]])
                 self.ui.label_conf.setText(str(self.conf_list[0]))
-            #     #   默认显示第一个目标框坐标
-            #     #   设置坐标位置值
-            #     self.ui.label_xmin.setText(str(self.location_list[0][0]))
-            #     self.ui.label_ymin.setText(str(self.location_list[0][1]))
-            #     self.ui.label_xmax.setText(str(self.location_list[0][2]))
-            #     self.ui.label_ymax.setText(str(self.location_list[0][3]))
-            # else:
-            #     self.ui.type_lb.setText('')
-            #     self.ui.label_conf.setText('')
-            #     self.ui.label_xmin.setText('')
-            #     self.ui.label_ymin.setText('')
-            #     self.ui.label_xmax.setText('')
-            #     self.ui.label_ymax.setText('')
-
 
             # 删除表格所有行
             # self.ui.tableWidget.setRowCount(0)
@@ -557,6 +520,52 @@ class MainWindow(QMainWindow):
                         cv2.imwrite(save_img_path, now_img)
 
                 QMessageBox.about(self, '提示', f'批量图片保存成功!\n文件路径:{Config.save_path}')
+
+    def check_and_save(self, results, frame):
+        # 未戴安全帽的类别ID为1
+        no_hat_id = Config.names.index('no_hat')
+        no_back_id = Config.names.index('no_back')
+
+        # 添加时间间隔控制（5秒间隔）
+        current_time = time.time()
+        min_save_interval = 5  # 最小保存间隔（秒）
+
+        # 检查当前帧是否有目标类别
+        if (no_hat_id in results.boxes.cls or no_back_id in results.boxes.cls) \
+                and (current_time - self.last_save_time) > min_save_interval:
+
+            # 更新最后保存时间
+            self.last_save_time = current_time
+
+            save_img = results.plot()
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            # 获取实际检测到的违规类别
+            detected_classes = set([int(cls) for cls in results.boxes.cls])
+            violation_types = []
+            if no_hat_id in detected_classes:
+                violation_types.append('no_hat')
+            if no_back_id in detected_classes:
+                violation_types.append('no_back')
+
+            # 生成包含违规类型的文件名
+            save_name = f"violation_{'_'.join(violation_types)}_{timestamp}.jpg"
+            save_path = os.path.join(Config.save_path, save_name)
+
+            # 使用线程池异步保存
+            try:
+                cv2.imwrite(save_path, save_img)
+            except Exception as e:
+                print(f"保存失败: {str(e)}")
+
+    def auto_save_image(self, frame):
+        # 生成带时间戳的唯一文件名
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        save_name = f"no_helmet_{timestamp}_{unique_id}.jpg"
+        save_path = os.path.join(Config.save_path, save_name)
+        # 保存图片
+        cv2.imwrite(save_path, frame)
 
     def update_process_bar(self,cur_num, total):
         if cur_num == 1:

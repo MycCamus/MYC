@@ -42,7 +42,7 @@ def test_detect():
     val = detect.DetectionValidator(args=cfg)
     val.add_callback("on_val_start", test_func)
     assert test_func in val.callbacks["on_val_start"], "callback test failed"
-    val(model=trainer.best)  # validate CBAMbest.pt
+    val(model=trainer.best)  # validate best.pt
 
     # Predictor
     pred = detect.DetectionPredictor(overrides={"imgsz": [64, 64]})
@@ -82,7 +82,7 @@ def test_segment():
     val = segment.SegmentationValidator(args=cfg)
     val.add_callback("on_val_start", test_func)
     assert test_func in val.callbacks["on_val_start"], "callback test failed"
-    val(model=trainer.best)  # validate CBAMbest.pt
+    val(model=trainer.best)  # validate best.pt
 
     # Predictor
     pred = segment.SegmentationPredictor(overrides={"imgsz": [64, 64]})

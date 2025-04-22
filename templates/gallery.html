@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>阿里云图片库</title>
+    <style>
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .image-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .image-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+    </style>
+    <!-- 在<head>标签内添加 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+    <h1>云端图片展示</h1>
+    <div class="gallery">
+        {% for url in images %}
+        <div class="image-item">
+            <img src="{{ url }}" alt="云端图片">
+        </div>
+        {% endfor %}
+    <!-- 在<body>顶部添加 -->
+    <div class="header">
+        <div class="date-filter">
+            <input type="text" id="datePicker" placeholder="选择日期...">
+        </div>
+        <div class="auth-section">
+            <button id="loginBtn">登录</button>
+            <div id="userPanel" style="display:none;">
+                <span>欢迎, </span>
+                <span id="username"></span>
+                <button id="logoutBtn">退出</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 在底部添加 -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+    // 日期选择器初始化
+    flatpickr("#datePicker", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        onClose: function(selectedDates){
+            // 触发日期过滤逻辑
+        }
+    });
+
+    // JWT 令牌管理
+    let token = localStorage.getItem('jwt');
+    updateAuthUI();
+
+    // 登录/退出逻辑
+    document.getElementById('loginBtn').addEventListener('click', () => {
+        // 弹出登录模态框
+    });
+    </script>
+    </div>
+</body>
+</html>
